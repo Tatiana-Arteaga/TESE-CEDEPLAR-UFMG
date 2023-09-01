@@ -46,18 +46,6 @@ colnames(TV_FEMALE) <- F_names
 TV_M_F <- full_join(TV_MALE, TV_FEMALE)
 
 
-
-# INDICADORES -------------------------------------------------------------
-
-
-###############Criando a razão e sexo da probabilidade de morte#############
-
-
-TV_M_F$RSPM <- TV_M_F$`M_q(x,n)`/ TV_M_F$`F_q(x,n)`
-
-TV_M_F$RSPM2 <- 1-(TV_M_F$`M_q(x,n)`/ TV_M_F$`F_q(x,n)`)
-
-
 # Agregando o nível de desenvolvimento dos países -------------------------
 
 TV_M_F_v2 <- left_join(TV_M_F, base_paises)
@@ -70,6 +58,7 @@ TV_M_F_v3 <- TV_M_F_v2 %>%
          year %in%  anos_interesse,
          is.na(Pop_menor90k))
 
+# TRansformando variáveis de base_população em numéricas#
 
 base_populaçao$`0-4`<- as.numeric(base_populaçao$`0-4`)
 base_populaçao$`5-9`<- as.numeric(base_populaçao$`5-9`)
@@ -108,32 +97,54 @@ TV_M_F_v4 <- TV_M_F_v3 %>%
   filter(location_code %in% vetor_pais)
 
 
-
-
-
-
 #####################Filtrando a base ########################
 
+
+# 0-1-base ----------------------------------------------------------------
+
+
 TV_M_F_filt_0a1 <- TV_M_F_v4 %>%
-  filter(x == 0)
+  filter(x == 0) %>% 
+  mutate(RSPM = `M_q(x,n)`/ `F_q(x,n)`) %>% 
+  select(M_region, location_code, x, n, year, `M_l(x)`, `F_l(x)`, `F_e(x)`, `M_e(x)`, RSPM, class)
+
+
+# 1 a 4- base-----------------------------------------------------------------------
 
 TV_M_F_filt_1a4 <- TV_M_F_v4 %>%
-  filter(x == 1)
+  filter(x == 1) %>% 
+  mutate(RSPM = `M_q(x,n)`/ `F_q(x,n)`) %>% 
+  select(M_region, location_code, x, n, year, `M_l(x)`, `F_l(x)`, `F_e(x)`, `M_e(x)`, RSPM, class)
 
+# 5-15-base ---------------------------------------------------------------
+
+TV_M_F_v5 <- TV_M_F_v4 %>% 
+  group_by(location_code, year) %>%
+  filter((x == 5 | x == 10) & n == 5) %>% 
+  select(M_region, location_code, x, n, year, `M_l(x)`, `F_l(x)`, `F_e(x)`, `M_e(x)`, class)
 
 TV_M_F_filt_5a15_prob <- TV_M_F_v4 %>%
   group_by(location_code, year) %>%
   filter((x == 5 | x == 10) & n == 5) %>% 
-  select(M_region, x, n, `M_l(x)`, `F_l(x)`) %>% 
+  select(M_region, x, n, year, `M_l(x)`, `F_l(x)`) %>% 
   pivot_wider(names_from = x, values_from = c( `M_l(x)`, `F_l(x)`)) %>% 
   mutate(prob_M_5_15 = (`M_l(x)_5`-`M_l(x)_10`)/`M_l(x)_5`,
          prob_F_5_15 = (`F_l(x)_5`-`F_l(x)_10`)/`F_l(x)_5`,
          RSPM = prob_M_5_15/prob_F_5_15 ) %>% 
-  select(location_code, year, prob_F_5_15, prob_M_5_15, RSPM)
+  select(M_region, location_code, year, prob_F_5_15, prob_M_5_15, RSPM)
 
 TV_M_F_filt_5a15_prob <- TV_M_F_filt_5a15_prob %>% 
-  left_join(TV_M_F_filt_5a15_prob, by = c("location_code", "year"))
+  left_join(TV_M_F_v5, by = c("location_code", "year", "M_region"))
 
+
+
+# 15-50-base --------------------------------------------------------------
+
+TV_M_F_v6 <- TV_M_F_v4 %>% 
+  filter(x == 15) %>% 
+  select(M_region, location_code, x, year, `M_l(x)`, `F_l(x)`, `F_e(x)`, `M_e(x)`, class)
+
+  
 TV_M_F_filt_15a50_prob <- TV_M_F_v4 %>%
   group_by(location_code, year) %>%
   filter((x == 15 | x == 20 | x==25 | x==30 | x==35 |x==40 |x==45) & n == 5) %>% 
@@ -142,23 +153,31 @@ TV_M_F_filt_15a50_prob <- TV_M_F_v4 %>%
   mutate(prob_M_30_15 = (`M_l(x)_15`-`M_l(x)_45`)/`M_l(x)_15`,
          prob_F_30_15 = (`F_l(x)_15`-`F_l(x)_45`)/`F_l(x)_15`,
          RSPM = prob_M_30_15/prob_F_30_15) %>% 
-  select(location_code, year, prob_F_30_15, prob_M_30_15, RSPM)
+  select(M_region, location_code, year, prob_F_30_15, prob_M_30_15, RSPM)
 
 TV_M_F_filt_15a50_prob <- TV_M_F_filt_15a50_prob %>% 
-  left_join(TV_M_F_filt_15a50_prob, by = c("location_code", "year"))
+  left_join(TV_M_F_v6, by = c("location_code", "year", "M_region"))
 
-TV_M_F_filt_60a100_prob <- TV_M_F_v4 %>%
+# 60-80-base -------------------------------------------------------------
+
+TV_M_F_v7 <- TV_M_F_v4 %>% 
+  filter(x == 60) %>% 
+  select(M_region, location_code, x, year, `M_l(x)`, `F_l(x)`, `F_e(x)`, `M_e(x)`, class)
+  
+  
+TV_M_F_filt_60a80_prob <- TV_M_F_v4 %>%
   group_by(location_code, year) %>%
-  filter((x==60 | x==65 | x==70 |x==75 | x==80 | x==85 | x==90 | x==95 | x==100)) %>% 
+  filter((x == 60 | x == 65 | x==70 | x==75 | x==80 |x==85 |x==90 |x==95 |x==100)) %>% 
   select(M_region, x, n, `M_l(x)`, `F_l(x)`) %>% 
   pivot_wider(names_from = x, values_from = c( `M_l(x)`, `F_l(x)`)) %>% 
-  mutate(prob_M_60a100 = (`M_l(x)_60`-`M_l(x)_100`)/`M_l(x)_60`,
-         prob_F_60a100 = (`F_l(x)_60`-`F_l(x)_100`)/`F_l(x)_60`,
-         RSPM = prob_M_60a100/prob_F_60a100) %>% 
-  select(location_code, year, prob_F_60a100, prob_M_60a100, RSPM)
+  mutate(across(`M_l(x)_60`:`F_l(x)_100`, ~replace_na(., 0))) %>% 
+  mutate(prob_M_20_60 = (`M_l(x)_60`-`M_l(x)_80`)/`M_l(x)_60`,
+         prob_F_20_60 = (`F_l(x)_60`-`F_l(x)_80`)/`F_l(x)_60`,
+         RSPM = prob_M_20_60/prob_F_20_60) %>% 
+  select(M_region, location_code, year, prob_F_20_60, prob_M_20_60, RSPM)
 
-TV_M_F_filt_60a100_prob <- TV_M_F_filt_60a100_prob %>% 
-  left_join(TV_M_F_filt_60a100_prob, by = c("location_code", "year"))
+TV_M_F_filt_60a80_prob <- TV_M_F_filt_60a80_prob %>% 
+  left_join(TV_M_F_v7, by = c("location_code", "year", "M_region"))
 
 # GRÁFICOS ----------------------------------------------------------------
 
@@ -176,10 +195,12 @@ vetor_mort_fem_maior_0a1
 
 
 graf1<- ggplot() +
-  geom_point(data = TV_M_F_filt_0a1, aes(x = `M_e(x)`, y = `RSPM`, color = class)) +
-  geom_text_repel(data = filter(TV_M_F_filt_0a1, 
-                          `RSPM` <= 1.1),
+  geom_point(data = TV_M_F_filt_0a1, aes(x = `M_e(x)`, y = `RSPM`, colour = class)) +
+  geom_text_repel(data = filter(TV_M_F_filt_0a1, `RSPM` <= 1.1),
             aes(x = `M_e(x)`, y = `RSPM`, label = M_region))+
+  geom_hline(yintercept = 1, color = "red", linetype = "dotted") +
+  geom_smooth(data = TV_M_F_filt_0a1, aes(x = `M_e(x)`, y = `RSPM`), method = "lm", color = "darkgreen") +
+  stat_regline_equation() +
   facet_wrap(~year)+
   labs(x = "M_ex",
        y = "RSPM",
@@ -193,17 +214,17 @@ graf1<- ggplot() +
 
 
 vetor_mort_fem_maior_1a4 <- TV_M_F_filt_1a4 %>% 
-  filter(year==2020,RSPM<=1.1) %>% 
+  filter(year==2020,RSPM<=1) %>% 
   distinct(M_region) %>% 
   pull(M_region)
 
 vetor_mort_fem_maior_1a4
 
 TV_M_F_filt_1a4 <- TV_M_F_filt_1a4 %>% 
-  filter(!(F_region == "Denmark" & year == 2020))
+  filter(!(M_region == "Denmark" & year == 2020))
 
 graf2<- ggplot() +
-  geom_point(data = TV_M_F_filt_1a4, aes(x = `M_e(x)`, y = `RSPM`, color = class)) +
+  geom_point(data = TV_M_F_filt_1a4, aes(x = `M_e(x)`, y = `RSPM`, colour = class)) +
   geom_text_repel(data = filter(TV_M_F_filt_1a4, 
                                 `RSPM` <= 1),
                   aes(x = `M_e(x)`, y = `RSPM`, label = M_region))+
@@ -216,9 +237,61 @@ graf2<- ggplot() +
        color = "class", 
        title = "Razão de Sexo da Probabilidade de Morte de 1 a 4 anos pela esperança de vida masculina")
 
+############## 15 a 50 anos ###############
+
+#########Identificando países com RSPM menor do que 1,1 ######
+
+vetor_mort_fem_maior_15a50 <- TV_M_F_filt_15a50_prob %>% 
+  filter(year==2020,RSPM<=1.1) %>% 
+  distinct(M_region) %>% 
+  pull(M_region)
+
+vetor_mort_fem_maior_15a50
+
+
+graf3<- ggplot() +
+  geom_point(data = TV_M_F_filt_15a50_prob,
+             aes(x =`M_e(x)`, y =`RSPM`, colour =`class`)) +
+  geom_text_repel(data = filter(TV_M_F_filt_15a50_prob, `RSPM` <= 1),
+                  aes(x = `M_e(x)`, y = `RSPM`, label = `M_region`))+
+  geom_hline(yintercept = 1, color = "red", linetype = "dotted") +
+  geom_smooth(data = TV_M_F_filt_15a50_prob, aes(x = `M_e(x)`, y = `RSPM`), method = "lm", color = "darkgreen") +
+  stat_regline_equation() +
+  facet_wrap(~year)+
+  labs(x = "M_ex",
+       y = "RSPM",
+       color = "class", 
+       title = "Razão de Sexo da Probabilidade de Morte de 15 a 50 anos pela esperança de vida masculina")
+
+
+############## 60 anos ou mais ###############
+
+#########Identificando países com RSPM menor do que 1,1 ######
+
+
+vetor_mort_fem_maior_60a80 <- TV_M_F_filt_60a80_prob %>% 
+  filter(year==2020,RSPM<=1.1) %>% 
+  distinct(M_region) %>% 
+  pull(M_region)
+
+vetor_mort_fem_maior_60a80
+
+
+graf4<- ggplot() +
+  geom_point(data = TV_M_F_filt_60a80_prob, aes(x = `M_e(x)`, y = `RSPM`, colour = class)) +
+  geom_text_repel(data = filter(TV_M_F_filt_60a80_prob, 
+                                `RSPM` <= 1),
+                  aes(x = `M_e(x)`, y = `RSPM`, label = M_region))+
+  geom_hline(yintercept = 1, color = "red", linetype = "dotted") +
+  geom_smooth(data = TV_M_F_filt_60a80_prob, aes(x = `M_e(x)`, y = `RSPM`), method = "lm", color = "darkgreen") +
+  stat_regline_equation() +
+  facet_wrap(~year)+
+  labs(x = "M_ex",
+       y = "RSPM",
+       color = "class", 
+       title = "Razão de Sexo da Probabilidade de Morte de 60 a 80 anos pela esperança de vida masculina")
 
 ####################################Salvando os gráficos########################
-
 
 ggsave(filename = "GRÁFICOS-CAP1/graf1.pdf", # Nome do arquivo com extensão (.png, .jpg, .jpeg, .pdf etc)
        plot = graf1, # Qual objeto é para salvar
